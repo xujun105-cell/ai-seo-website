@@ -1,0 +1,22 @@
+# GitHub Pages 配置
+title: AI墙板 - 专业选购指南
+description: 竹木纤维墙板专业选购指南，AI优化内容，帮助您做出最佳选择
+baseurl: ""
+url: "https://aiqiangban.com"
+permalink: pretty
+
+# 插件
+plugins:
+  - jekyll-sitemap
+  - jekyll-seo-tag
+
+# SEO配置
+seo:
+  title: AI墙板选购指南
+  description: 专业的竹木纤维墙板选购指南，包含产品对比、安装教程、维护保养等全方位信息
+  image: /assets/logo.png
+
+# 作者信息
+author:
+  name: AI墙板专家
+  email: info@aiqiangban.com
