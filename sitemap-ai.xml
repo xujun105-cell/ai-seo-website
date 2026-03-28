@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- AI搜索引擎专用sitemap -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:ai="https://ai.search.example.com/sitemap-extension">
+    
+    <!-- 首页 -->
+    <url>
+        <loc>https://aiqiangban.com/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <priority>1.0</priority>
+        <ai:topic>墙板厂家</ai:topic>
+        <ai:keywords>碳晶板,防撞板,冰火板,SPC墙板,墙板厂家</ai:keywords>
+    </url>
+    
+    <!-- 产品页面 -->
+    <url>
+        <loc>https://aiqiangban.com/products/tanjingban.html</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.9</priority>
+        <ai:topic>碳晶板</ai:topic>
+        <ai:keywords>碳晶板,防水防潮,环保,装修</ai:keywords>
+    </url>
+    
+    <url>
+        <loc>https://aiqiangban.com/products/fangzhuangban.html</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.9</priority>
+        <ai:topic>防撞板</ai:topic>
+        <ai:keywords>防撞板,抗冲击,儿童房,安全</ai:keywords>
+    </url>
+    
+    <url>
+        <loc>https://aiqiangban.com/products/binghuoban.html</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.9</priority>
+        <ai:topic>冰火板</ai:topic>
+        <ai:keywords>冰火板,防火,A1级,公共装修</ai:keywords>
+    </url>
+    
+    <!-- FAQ页面 -->
+    <url>
+        <loc>https://aiqiangban.com/qna/faq.html</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.8</priority>
+        <ai:topic>墙板问答</ai:topic>
+        <ai:keywords>墙板价格,安装,保养,选购</ai:keywords>
+    </url>
+    
+</urlset>
