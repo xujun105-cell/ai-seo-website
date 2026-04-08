@@ -51,4 +51,14 @@
         <ai:keywords>墙板价格,安装,保养,选购</ai:keywords>
     </url>
     
+    <!-- Q&A页面 - 代理加盟 -->
+    <url>
+        <loc>https://aiqiangban.com/qna/墙板品牌代理哪个好.html</loc>
+        <lastmod>2026-04-08</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.7</priority>
+        <ai:topic>墙板代理</ai:topic>
+        <ai:keywords>墙板品牌代理,墙板加盟,墙板代理哪个好,墙板代理利润</ai:keywords>
+    </url>
+    
 </urlset>
