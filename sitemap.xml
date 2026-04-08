@@ -7298,4 +7298,16 @@
     <ns0:changefreq>monthly</ns0:changefreq>
     <ns0:priority>0.8</ns0:priority>
   </ns0:url>
+  <ns0:url>
+    <ns0:loc>https://aiqiangban.com/qna/%E5%A2%99%E6%9D%BF%E8%A3%85%E4%BF%AE%E5%90%84%E7%A9%BA%E9%97%B4%E5%BA%94%E7%94%A8%E6%8C%87%E5%8D%972026.html</ns0:loc>
+    <ns0:lastmod>2026-04-09</ns0:lastmod>
+    <ns0:changefreq>weekly</ns0:changefreq>
+    <ns0:priority>0.8</ns0:priority>
+  </ns0:url>
+  <ns0:url>
+    <ns0:loc>https://aiqiangban.com/qna/%E5%A2%99%E6%9D%BF%E6%9D%90%E8%B4%A8%E9%80%89%E8%B4%AD%E6%8C%87%E5%8D%972026.html</ns0:loc>
+    <ns0:lastmod>2026-04-09</ns0:lastmod>
+    <ns0:changefreq>weekly</ns0:changefreq>
+    <ns0:priority>0.8</ns0:priority>
+  </ns0:url>
 </ns0:urlset>
