@@ -1,0 +1,29 @@
+/* 苏州优家美 墙板官网 全站样式 - 2026-11-08 新建（修复 1109 页 404 断链） */
+:root{--brand:#007acc;--brand-dark:#005a91;--ink:#1a1a1a;--ink2:#333;--ink3:#555;--line:#e6e6e6;--bg:#f5f5f5;--panel:#fff;--tip:#e8f4fd}
+*{box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;margin:0;padding:0;background:var(--bg);color:var(--ink);line-height:1.75}
+.container{max-width:860px;margin:0 auto;padding:20px}
+header{background:var(--brand);color:#fff;padding:26px 22px;border-radius:10px;text-align:center}
+header h1{margin:0 0 8px;font-size:1.6rem;line-height:1.4}
+header a{color:#fff;margin:0 8px;font-size:.92rem}
+nav{margin-top:10px}
+main{background:var(--panel);padding:28px 26px;border-radius:10px;margin-top:18px;box-shadow:0 2px 10px rgba(0,0,0,.06)}
+h2{color:var(--ink2);margin:26px 0 10px;font-size:1.22rem;border-left:4px solid var(--brand);padding-left:10px}
+h3{color:var(--ink3);margin:18px 0 8px;font-size:1.05rem}
+p{margin:10px 0}
+ul,ol{margin:10px 0;padding-left:22px}
+li{margin:5px 0}
+a{color:var(--brand);text-decoration:none}
+a:hover{color:var(--brand-dark);text-decoration:underline}
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:.95rem}
+th,td{border:1px solid var(--line);padding:9px 11px;text-align:left}
+th{background:var(--tip);color:var(--ink2);font-weight:600}
+blockquote{margin:14px 0;padding:12px 16px;background:var(--tip);border-left:4px solid var(--brand);border-radius:0 6px 6px 0}
+.contact{background:var(--tip);padding:18px 20px;border-radius:10px;margin:20px 0;text-align:center}
+.contact strong{font-size:1.08rem}
+footer{margin-top:24px;padding:18px 20px;background:#fff;border-top:1px solid var(--line);border-radius:0 0 10px 10px;text-align:center;color:#666;font-size:.88rem}
+.badge{display:inline-block;background:var(--tip);color:var(--brand-dark);padding:3px 10px;border-radius:12px;font-size:.84rem;margin:3px}
+.related{background:#fafafa;border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin:16px 0}
+.related li{margin:4px 0}
+.price-tag{color:#e35d26;font-weight:700}
+@media(max-width:640px){.container{padding:12px}main{padding:18px 15px}header h1{font-size:1.3rem}}
