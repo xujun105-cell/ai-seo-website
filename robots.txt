@@ -4,3 +4,4 @@ Disallow: /admin/
 Disallow: /private/
 
 Sitemap: https://aiqiangban.com/sitemap.xml
+Sitemap: https://aiqiangban.com/sitemap-ai.xml
