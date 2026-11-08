@@ -1,0 +1,4 @@
+# 扩写中间产物（正式内容已写入 qna/）
+qna_expanded/
+*.bak-*
+.DS_Store
