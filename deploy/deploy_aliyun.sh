@@ -212,55 +212,6 @@ else
   log "  nginx 未安装，跳过预检"
 fi
 
-# ---------- 4.5 把 nginx root 指到 $BASE/current（否则部署不生效且旧 .git 继续暴露）----------
-log "=== 4.5/7 nginx root 归位 ==="
-# 背景：nginx root 指向 $BASE（父目录）时，切换 current 软链不会改变实际服务内容，
-#       旧目录的 .git/config 与 MEMORY.md/TOOLS.md 会继续在公网可读。
-# 处置：备份 conf → 改 root → nginx -t → reload；任一步失败自动回滚。
-repoint_nginx_root(){
-  local target="$BASE/current" changed=0 f
-  local confs=""
-  for d in /etc/nginx /usr/local/nginx/conf /etc/nginx/conf.d /etc/nginx/sites-enabled; do
-    [ -d "$d" ] || continue
-    while IFS= read -r f; do [ -n "$f" ] && confs="$confs $f"; done <<EOF
-$(find "$d" -maxdepth 3 -type f \( -name '*.conf' -o -name 'nginx.conf' \) 2>/dev/null)
-EOF
-  done
-  [ -n "$confs" ] || { log "  ⚠️ 找不到 nginx 配置文件，跳过 root 归位（请手动改 root 并 reload）"; return 0; }
-  for f in $confs; do
-    grep -qE "^[[:space:]]*root[[:space:]]+" "$f" 2>/dev/null || continue
-    cp -p "$f" "$f.bak-xld-$TS" 2>/dev/null || true
-    if python3 - "$f" "$target" <<'PY'
-import re,sys
-p,tgt=sys.argv[1],sys.argv[2]
-s=open(p,encoding="utf-8",errors="ignore").read()
-out=[]
-for line in s.splitlines(True):
-    m=re.match(r'^(\s*)root\s+([^;]+);(\s*(#.*)?)$', line)
-    if m:
-        out.append(f"{m.group(1)}root {tgt};{m.group(3)}
-")
-    else:
-        out.append(line)
-open(p,"w",encoding="utf-8").write("".join(out))
-PY
-    then changed=1; log "  已改 root → $target ：$f"; fi
-  done
-  [ "$changed" = "1" ] || { log "  ⚠️ 未找到可改的 root 指令"; return 0; }
-  if ! nginx -t; then
-    log "  🔴 nginx -t 失败 —— 回滚 conf"
-    for f in $confs; do [ -f "$f.bak-xld-$TS" ] && mv -f "$f.bak-xld-$TS" "$f"; done
-    nginx -t || true
-    return 1
-  fi
-  systemctl reload nginx && log "  nginx reloaded（root 已归位到 $target）"
-}
-if command -v nginx >/dev/null 2>&1; then
-  repoint_nginx_root || fail "nginx root 归位失败 —— 已回滚 conf，现网未动"
-else
-  log "  nginx 未安装，跳过 root 归位"
-fi
-
 # ---------- 5. 切换 current（软链，原子；旧版保留）----------
 log "=== 5/7 切换 current ==="
 PREV=""
@@ -287,6 +238,12 @@ QUAR="$BASE/.quarantine-$TS"
 CLEANED=""
 # 1) 当前 root 指向的旧目录
 OLD_ROOTS="$NGINX_ROOT $BASE"
+# 旧 releases 也要清：若 nginx root 指向 $BASE，则 /releases/<ts>/MEMORY.md 同样可读
+for d in "$BASE"/releases/*/; do
+  [ -d "$d" ] || continue
+  [ "$d" = "$REL/" ] && continue
+  OLD_ROOTS="$OLD_ROOTS $d"
+done
 for r in $OLD_ROOTS; do
   [ -n "$r" ] || continue
   [ "$r" = "$BASE/current" ] && continue
@@ -302,6 +259,70 @@ if [ -n "$CLEANED" ]; then
   log "  ✅ 已下线（移入 $QUAR，可取回）:$CLEANED"
 else
   log "  ℹ️ 旧服务目录未发现 .git / 内部 md（可能已清理过）"
+fi
+
+# ---------- 5.8 把 nginx root 指到 $BASE/current ----------
+# 放在"切换 current"之后：先保证 $BASE/current 已存在，再改 root，避免 root 指向尚未创建的 current 造成 404 窗口。
+# 只改"确实指向旧站点根"的 root 指令 —— 不碰这台服务器上别的站点。
+# 处置：先写 .xld-new 暂存 → 备份原 conf → 替换 → nginx -t；nginx -t 失败自动回滚。
+log "=== 5.8/7 nginx root 归位 ==="
+repoint_nginx_root(){
+  local target="$BASE/current" changed=0 f
+  local confs=""
+  if [ -n "$XLD_NGINX_CONF_DIRS" ]; then
+    DIRS="$XLD_NGINX_CONF_DIRS"
+  else
+    DIRS="/etc/nginx /usr/local/nginx/conf /etc/nginx/conf.d /etc/nginx/sites-enabled"
+  fi
+  for d in $DIRS; do
+    [ -d "$d" ] || continue
+    while IFS= read -r f; do [ -n "$f" ] && confs="$confs $f"; done <<EOF
+$(find "$d" -maxdepth 3 -type f \( -name '*.conf' -o -name 'nginx.conf' \) 2>/dev/null)
+EOF
+  done
+  [ -n "$confs" ] || { log "  ⚠️ 找不到 nginx 配置文件，跳过 root 归位（请手动改 root 并 reload）"; return 0; }
+  for f in $confs; do
+    grep -qE "^[[:space:]]*root[[:space:]]+" "$f" 2>/dev/null || continue
+    if python3 - "$f" "$target" "$NGINX_ROOT" "$BASE" <<'PY'
+import re,sys
+p,tgt,oldroot,base=sys.argv[1],sys.argv[2],sys.argv[3],sys.argv[4]
+allowed={oldroot.strip(),base.strip()}-{''}
+s=open(p,encoding="utf-8",errors="ignore").read()
+out=[]
+changed=False
+for line in s.splitlines(True):
+    m=re.match(r'^(\s*)root\s+([^;]+);(\s*(#.*)?)$', line)
+    if m and m.group(2).strip() in allowed:
+        out.append(m.group(1)+"root "+tgt+";"+m.group(3)+"\n")
+        changed=True
+    else:
+        out.append(line)
+if changed:
+    open(p+".xld-new","w",encoding="utf-8").write("".join(out))
+sys.exit(0 if changed else 3)
+PY
+    then
+      cp -p "$f" "$f.bak-xld-$TS" 2>/dev/null || true
+      mv -f "$f.xld-new" "$f"
+      changed=1
+      log "  已改 root → $target ：$f"
+    else
+      rm -f "$f.xld-new" 2>/dev/null || true
+    fi
+  done
+  [ "$changed" = "1" ] || { log "  ⚠️ 未找到指向旧站点根的 root 指令（未改动任何 conf）"; return 0; }
+  if ! nginx -t; then
+    log "  🔴 nginx -t 失败 —— 回滚 conf"
+    for f in $confs; do [ -f "$f.bak-xld-$TS" ] && mv -f "$f.bak-xld-$TS" "$f"; done
+    nginx -t || true
+    return 1
+  fi
+  log "  conf 已改（root → $target），reload 由第 6 步统一执行"
+}
+if command -v nginx >/dev/null 2>&1; then
+  repoint_nginx_root || fail "nginx root 归位失败 —— 已回滚 conf，现网未动"
+else
+  log "  nginx 未安装，跳过 root 归位"
 fi
 
 # ---------- 6. nginx reload ----------
