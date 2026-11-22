@@ -13,8 +13,9 @@
 #   XLD_SKIP_SYSTEM=1  干跑：跳过 nginx reload
 #   XLD_EXCLUDE     额外排除的 glob（空格分隔），追加到默认排除表
 #
-# 用法（服务器上）：
+# 用法（服务器上）—— 路径必须是 ops/deploy/deploy_aliyun.sh（少一层目录的旧写法会 404）：
 #   bash -c "$(curl -sSL https://raw.githubusercontent.com/xujun105-cell/ai-seo-website/ops/deploy/deploy_aliyun.sh)"
+# 更稳：用 commit SHA 锁定 URL（日报/待办里交付的就是当次 SHA 锁定版），避免分支路径的 CDN 缓存拿到旧脚本
 set -euo pipefail
 
 REPO="${XLD_REPO:-https://github.com/xujun105-cell/ai-seo-website.git}"
@@ -197,16 +198,67 @@ if command -v nginx >/dev/null 2>&1; then
   if [ -n "$ALL_ROOTS" ]; then
     if echo "$ALL_ROOTS" | grep -qF "$BASE/current"; then
       log "  ✅ 存在指向 $BASE/current 的 root"
-    elif echo "$ALL_ROOTS" | grep -qF "$BASE"; then
-      log "  ⚠️ nginx root 指向 $BASE（不是 $BASE/current）"
-      log "     软链切换后该 root 会自动跟随 current，无需改配置 ✅"
     else
-      log "  ⚠️ 没有 root 指向 $BASE —— 本次部署可能不生效"
-      log "     请把 nginx root 改到 $BASE/current 后 reload。"
+      log "  🔴 没有 root 指向 $BASE/current —— 切 current 软链不会生效，服务器会继续服务旧目录"
+      if echo "$ALL_ROOTS" | grep -qF "$BASE"; then
+        log "     当前 root 指向 $BASE（父目录）：nginx 会读 $BASE/index.html，不会跟随 current 软链。"
+        log "     旧目录里的 .git 与内部 md 会继续被公网读到 —— 本脚本会在第 5.5 步把 root 改到 $BASE/current 并清掉旧暴露面。"
+      else
+        log "     root 取值与本次 BASE 都不匹配，脚本会按实际 root 做暴露面清理。"
+      fi
     fi
   fi
 else
   log "  nginx 未安装，跳过预检"
+fi
+
+# ---------- 4.5 把 nginx root 指到 $BASE/current（否则部署不生效且旧 .git 继续暴露）----------
+log "=== 4.5/7 nginx root 归位 ==="
+# 背景：nginx root 指向 $BASE（父目录）时，切换 current 软链不会改变实际服务内容，
+#       旧目录的 .git/config 与 MEMORY.md/TOOLS.md 会继续在公网可读。
+# 处置：备份 conf → 改 root → nginx -t → reload；任一步失败自动回滚。
+repoint_nginx_root(){
+  local target="$BASE/current" changed=0 f
+  local confs=""
+  for d in /etc/nginx /usr/local/nginx/conf /etc/nginx/conf.d /etc/nginx/sites-enabled; do
+    [ -d "$d" ] || continue
+    while IFS= read -r f; do [ -n "$f" ] && confs="$confs $f"; done <<EOF
+$(find "$d" -maxdepth 3 -type f \( -name '*.conf' -o -name 'nginx.conf' \) 2>/dev/null)
+EOF
+  done
+  [ -n "$confs" ] || { log "  ⚠️ 找不到 nginx 配置文件，跳过 root 归位（请手动改 root 并 reload）"; return 0; }
+  for f in $confs; do
+    grep -qE "^[[:space:]]*root[[:space:]]+" "$f" 2>/dev/null || continue
+    cp -p "$f" "$f.bak-xld-$TS" 2>/dev/null || true
+    if python3 - "$f" "$target" <<'PY'
+import re,sys
+p,tgt=sys.argv[1],sys.argv[2]
+s=open(p,encoding="utf-8",errors="ignore").read()
+out=[]
+for line in s.splitlines(True):
+    m=re.match(r'^(\s*)root\s+([^;]+);(\s*(#.*)?)$', line)
+    if m:
+        out.append(f"{m.group(1)}root {tgt};{m.group(3)}
+")
+    else:
+        out.append(line)
+open(p,"w",encoding="utf-8").write("".join(out))
+PY
+    then changed=1; log "  已改 root → $target ：$f"; fi
+  done
+  [ "$changed" = "1" ] || { log "  ⚠️ 未找到可改的 root 指令"; return 0; }
+  if ! nginx -t; then
+    log "  🔴 nginx -t 失败 —— 回滚 conf"
+    for f in $confs; do [ -f "$f.bak-xld-$TS" ] && mv -f "$f.bak-xld-$TS" "$f"; done
+    nginx -t || true
+    return 1
+  fi
+  systemctl reload nginx && log "  nginx reloaded（root 已归位到 $target）"
+}
+if command -v nginx >/dev/null 2>&1; then
+  repoint_nginx_root || fail "nginx root 归位失败 —— 已回滚 conf，现网未动"
+else
+  log "  nginx 未安装，跳过 root 归位"
 fi
 
 # ---------- 5. 切换 current（软链，原子；旧版保留）----------
@@ -225,6 +277,32 @@ mv "$PUB" "$REL"
 ln -sfn "$REL" "$BASE/current"
 log "  current → $(readlink "$BASE/current")"
 [ -n "$PREV" ] && log "  回滚目标: $PREV"
+
+# ---------- 5.5 清理旧服务目录里的 git 元数据与内部工作文档 ----------
+# 背景：现网旧目录（nginx 原 root）里 /.git/config、/.git/index、/MEMORY.md、/TOOLS.md 仍是 200。
+#       部署只换 current 软链不会删掉旧目录的内容 —— 必须显式下线。
+# 处置：不直接 rm —— 先移到 $BASE/.quarantine-<ts>/（root 归位后不再对外服务，可随时取回）。
+log "=== 5.5/7 清理旧服务目录暴露面 ==="
+QUAR="$BASE/.quarantine-$TS"
+CLEANED=""
+# 1) 当前 root 指向的旧目录
+OLD_ROOTS="$NGINX_ROOT $BASE"
+for r in $OLD_ROOTS; do
+  [ -n "$r" ] || continue
+  [ "$r" = "$BASE/current" ] && continue
+  [ -d "$r" ] || continue
+  for item in .git MEMORY.md TOOLS.md AGENTS.md SOUL.md USER.md IDENTITY.md HEARTBEAT.md memory _internal; do
+    if [ -e "$r/$item" ] || [ -L "$r/$item" ]; then
+      mkdir -p "$QUAR"
+      mv "$r/$item" "$QUAR/$(echo "$r" | tr '/' '_')__$(basename "$item")" 2>/dev/null && CLEANED="$CLEANED $r/$item"
+    fi
+  done
+done
+if [ -n "$CLEANED" ]; then
+  log "  ✅ 已下线（移入 $QUAR，可取回）:$CLEANED"
+else
+  log "  ℹ️ 旧服务目录未发现 .git / 内部 md（可能已清理过）"
+fi
 
 # ---------- 6. nginx reload ----------
 log "=== 6/7 nginx ==="
@@ -280,21 +358,35 @@ elif [ "$HOST_CODE" = "200" ]; then
 else
   log "  $DOMAIN → $HOST_CODE（注意：非 403 说明已过 ICP，排查返回内容）"
 fi
-# .git 暴露自检：现网曾公开 /.git/config（可拉全历史），部署后必须不再暴露
-GITC=$(curl -s -o /dev/null -w "%{http_code}" -m 10 "http://127.0.0.1/.git/config" 2>/dev/null || echo "ERR")
-MEMC=$(curl -s -o /dev/null -w "%{http_code}" -m 10 "http://127.0.0.1/MEMORY.md" 2>/dev/null || echo "ERR")
-if [ "$MEMC" = "200" ]; then
-  log "  🔴 /MEMORY.md 仍返回 200 —— 新发布目录仍含内部工作文档！"
-  log "     处置：检查排除表（memory/ _internal/ 等）是否生效，并把 nginx root 指到 $BASE/current"
+# 暴露面复检：公网 Host 头 + 本机默认 vhost，两个都查
+# 注意：只查 http://127.0.0.1/ 是不够的 —— 本机默认站 ≠ 公网 host，必须带 Host 头再查一遍。
+# 命中即判定部署未达成安全目标 → 非零退出（大哥能一眼看到），不回滚已生效的站点内容。
+EXPOSE_HIT=""
+check_expose(){
+  local base_url="$1" label="$2" p code
+  for p in /.git/config /.git/HEAD /.git/index /.git/packed-refs /.git/logs/HEAD /MEMORY.md /TOOLS.md /AGENTS.md /memory/2026-04-07.md; do
+    code=$(curl -s -o /dev/null -w "%{http_code}" -m 10 "$base_url$p" 2>/dev/null || echo "ERR")
+    if [ "$code" = "200" ]; then
+      EXPOSE_HIT="$EXPOSE_HIT $label$p(200)"
+      log "  🔴 $label$p → 200（仍在公开）"
+    fi
+  done
+}
+check_expose "http://127.0.0.1" "127.0.0.1"
+for p in /.git/config /.git/HEAD /.git/index /.git/packed-refs /.git/logs/HEAD /MEMORY.md /TOOLS.md /AGENTS.md /memory/2026-04-07.md; do
+  code=$(curl -s -o /dev/null -w "%{http_code}" -m 12 -H "Host: $DOMAIN" "http://127.0.0.1$p" 2>/dev/null || echo "ERR")
+  if [ "$code" = "200" ]; then
+    EXPOSE_HIT="$EXPOSE_HIT host:$DOMAIN$p(200)"
+    log "  🔴 host:$DOMAIN$p → 200（公网 host 口径仍在公开）"
+  fi
+done
+if [ -n "$EXPOSE_HIT" ]; then
+  log "  [FAIL] 暴露面未清干净：$EXPOSE_HIT"
+  log "     公网复检（部署后在大哥机器上跑，绕开本机 ICP 403）："
+  log "       for p in /.git/config /.git/index /MEMORY.md /TOOLS.md; do printf '%s ' "\$p"; curl -s -o /dev/null -w '%{http_code}\n' "https://$DOMAIN\$p"; done"
+  fail "仍有公开暴露面 —— 部署内容已上线但安全目标未达成，请按上面提示处理后重跑"
 else
-  log "  ✅ /MEMORY.md → $MEMC（新发布目录不含内部工作文档）"
-fi
-if [ "$GITC" = "200" ]; then
-  log "  🔴 /.git/config 仍返回 200 —— 服务器仍在公开 git 目录！"
-  log "     原因：nginx root 可能不指向 $BASE/current（指向了旧目录），或旧目录未清理。"
-  log "     处置：把 nginx root 改到 $BASE/current 并 reload；或手动删除旧目录下的 .git"
-else
-  log "  ✅ /.git/config → $GITC（未暴露 git 目录）"
+  log "  ✅ 暴露面复检通过（127.0.0.1 与 host:$DOMAIN 两种口径均为非 200）"
 fi
 # 关键页厚度（中文正文字数），验证"新内容真上线"而非"还是旧的薄壳"
 if command -v python3 >/dev/null 2>&1; then
