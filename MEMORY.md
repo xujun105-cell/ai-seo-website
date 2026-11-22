@@ -436,7 +436,7 @@
 **GitHub推送:** ✅ 成功（commit dc52093）
 **sitemap更新:** ✅ 更新至1218页（commit 313166e，+1甲醛页面）
 **百度API提交:** ✅ 成功提交2个URL（remain:8）
-  - 🎉 重要发现：从旧会话记录中找到了Token：`kZXcjDBmM3rBCuLp`
+  - 🎉 重要发现：从旧会话记录中找到了Token：`***已撤下(见共享层凭据库)***`
   - Token位置：TOOLS.md（需更新）
 **新页面部署验证:** ⚠️ 甲醛页面部署中（等待GitHub Pages），人工费页面200 OK
 
@@ -445,8 +445,8 @@
 - 实际被收录: ❌ 0页（持续最高优先级阻塞）
 
 ### 百度API Token已找到
-- Token: `kZXcjDBmM3rBCuLp`
-- API地址: `http://data.zz.baidu.com/urls?site=https://aiqiangban.com&token=kZXcjDBmM3rBCuLp`
+- Token: `***已撤下(见共享层凭据库)***`
+- API地址: `http://data.zz.baidu.com/urls?site=https://aiqiangban.com&token=***已撤下(见共享层凭据库)***`
 - 存储位置：需更新至TOOLS.md以便后续使用
 
 ### 学习心得:

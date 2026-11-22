@@ -39,9 +39,9 @@ Skills are shared. Your setup is yours. Keeping them apart means you can update 
 
 ## 百度搜索资源平台 API
 
-- **Token**: `kZXcjDBmM3rBCuLp`
-- **API地址**: `http://data.zz.baidu.com/urls?site=https://aiqiangban.com&token=kZXcjDBmM3rBCuLp`
-- **提交方式**: `curl -H 'Content-Type: text/plain' --data-binary @urls.txt "http://data.zz.baidu.com/urls?site=https://aiqiangban.com&token=kZXcjDBmM3rBCuLp"`
+- **Token**: `***已撤下(见共享层凭据库)***`
+- **API地址**: `http://data.zz.baidu.com/urls?site=https://aiqiangban.com&token=***已撤下(见共享层凭据库)***`
+- **提交方式**: `curl -H 'Content-Type: text/plain' --data-binary @urls.txt "http://data.zz.baidu.com/urls?site=https://aiqiangban.com&token=***已撤下(见共享层凭据库)***"`
 - **每日配额**: 约10个URL（remain字段显示剩余配额）
 - **位置**: 百度搜索资源平台 → 资源提交 → 普通收录 → API提交
 - **注意**: Token从2026-04-06会话记录中找回，建议大哥在平台修改Token以防泄露
