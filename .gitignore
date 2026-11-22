@@ -2,3 +2,6 @@
 qna_expanded/
 *.bak-*
 .DS_Store
+
+# agent 记忆目录留在 _internal 下（GitHub Pages 不发布下划线目录），根目录 memory/ 不再跟踪
+/memory/
