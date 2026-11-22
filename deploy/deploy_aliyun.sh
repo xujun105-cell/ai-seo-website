@@ -32,7 +32,7 @@ fail(){ echo "[deploy][FAIL] $*"; exit 1; }
 
 # 默认排除：git 元数据 + agent 工作区文件（这些不该出现在站点根目录）
 # 注意：indexnow-key.txt 不在排除表 —— IndexNow 协议要求 key 能在域名根路径被抓取，属刻意公开
-DEFAULT_EXCLUDE=".git .git .gitignore .openclaw AGENTS.md MEMORY.md USER.md SOUL.md IDENTITY.md TOOLS.md HEARTBEAT.md SEO闭环流程.md SEO闭环报告_*.md SEO报告_*.md"
+DEFAULT_EXCLUDE=".git .git .gitignore .openclaw AGENTS.md MEMORY.md USER.md SOUL.md IDENTITY.md TOOLS.md HEARTBEAT.md _internal deploy"
 
 # ---------- 0. 部署前勘察（不改任何东西）----------
 log "=== 0/7 现场勘察 ==="
@@ -182,7 +182,7 @@ log "  snippet: $REDMAP"
 
 # ---------- 3.6 凭据泄露守卫（发布目录里不能有凭据）----------
 log "=== 3.6/7 凭据泄露守卫 ==="
-LEAK=$(grep -rlE "kZXcjDBmM3rBCuLp|ghp_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,}|LTAI[A-Za-z0-9]{12,}" "$PUB" 2>/dev/null | head -20 || true)
+LEAK=$(grep -rlE "token=[A-Za-z0-9]{16,}|ghp_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,}|LTAI[A-Za-z0-9]{12,}|AKIA[A-Z0-9]{16}" "$PUB" 2>/dev/null | head -20 || true)
 if [ -n "$LEAK" ]; then
   log "  [FAIL] 发布目录内检出疑似凭据 —— 中止，现网未动"
   echo "$LEAK" | sed "s/^/     /"

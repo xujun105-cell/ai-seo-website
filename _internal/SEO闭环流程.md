@@ -21,6 +21,6 @@
 
 ## 百度API提交
 
-- API地址：`http://data.zz.baidu.com/urls?site=https://aiqiangban.com&token=kZXcjDBmM3rBCuLp`
+- API地址：`http://data.zz.baidu.com/urls?site=https://aiqiangban.com&token=***REDACTED-see-shared-credential-store***`
 - 每次最多提交10个URL
 - 提交后记录返回值（success/remain字段）
