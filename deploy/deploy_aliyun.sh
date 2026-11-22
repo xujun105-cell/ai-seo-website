@@ -14,7 +14,7 @@
 #   XLD_EXCLUDE     额外排除的 glob（空格分隔），追加到默认排除表
 #
 # 用法（服务器上）：
-#   bash -c "$(curl -sSL https://raw.githubusercontent.com/xujun105-cell/ai-seo-website/ops/deploy_aliyun.sh)"
+#   bash -c "$(curl -sSL https://raw.githubusercontent.com/xujun105-cell/ai-seo-website/ops/deploy/deploy_aliyun.sh)"
 set -euo pipefail
 
 REPO="${XLD_REPO:-https://github.com/xujun105-cell/ai-seo-website.git}"
@@ -32,7 +32,7 @@ fail(){ echo "[deploy][FAIL] $*"; exit 1; }
 
 # 默认排除：git 元数据 + agent 工作区文件（这些不该出现在站点根目录）
 # 注意：indexnow-key.txt 不在排除表 —— IndexNow 协议要求 key 能在域名根路径被抓取，属刻意公开
-DEFAULT_EXCLUDE=".git .git .gitignore .openclaw AGENTS.md MEMORY.md USER.md SOUL.md IDENTITY.md TOOLS.md HEARTBEAT.md _internal deploy"
+DEFAULT_EXCLUDE=".git .git .gitignore .openclaw AGENTS.md MEMORY.md USER.md SOUL.md IDENTITY.md TOOLS.md HEARTBEAT.md _internal deploy memory"
 
 # ---------- 0. 部署前勘察（不改任何东西）----------
 log "=== 0/7 现场勘察 ==="
@@ -123,7 +123,7 @@ done
 log "  已排除: $EX"
 [ -e "$PUB/.git" ] && fail "站点目录仍含 .git —— 中止"
 # 抽查：确认内部文件确实没进站点目录（静默失效会在这里暴露）
-for probe_f in AGENTS.md MEMORY.md USER.md SOUL.md IDENTITY.md TOOLS.md HEARTBEAT.md .openclaw; do
+for probe_f in AGENTS.md MEMORY.md USER.md SOUL.md IDENTITY.md TOOLS.md HEARTBEAT.md .openclaw memory; do
   [ -e "$PUB/$probe_f" ] && fail "内部文件仍在站点目录: $probe_f —— 排除表失效，中止"
 done
 log "  ✅ 站点目录不含 .git 与内部工作区文件"
@@ -282,6 +282,13 @@ else
 fi
 # .git 暴露自检：现网曾公开 /.git/config（可拉全历史），部署后必须不再暴露
 GITC=$(curl -s -o /dev/null -w "%{http_code}" -m 10 "http://127.0.0.1/.git/config" 2>/dev/null || echo "ERR")
+MEMC=$(curl -s -o /dev/null -w "%{http_code}" -m 10 "http://127.0.0.1/MEMORY.md" 2>/dev/null || echo "ERR")
+if [ "$MEMC" = "200" ]; then
+  log "  🔴 /MEMORY.md 仍返回 200 —— 新发布目录仍含内部工作文档！"
+  log "     处置：检查排除表（memory/ _internal/ 等）是否生效，并把 nginx root 指到 $BASE/current"
+else
+  log "  ✅ /MEMORY.md → $MEMC（新发布目录不含内部工作文档）"
+fi
 if [ "$GITC" = "200" ]; then
   log "  🔴 /.git/config 仍返回 200 —— 服务器仍在公开 git 目录！"
   log "     原因：nginx root 可能不指向 $BASE/current（指向了旧目录），或旧目录未清理。"
