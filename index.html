@@ -351,12 +351,15 @@
                     <p>苏州市吴中区光福镇<br>福锦路11号6号楼一层</p>
                 </div>
             </div>
-            <form class="lead-form" data-lead-form="homepage_quote" action="mailto:xiaoyi55@126.com" method="post" enctype="text/plain">
+            <form class="lead-form" data-lead-form="homepage_quote" action="/api/lead" method="post">
                 <label>姓名
                     <input name="name" autocomplete="name" placeholder="怎么称呼您">
                 </label>
                 <label>电话
                     <input name="phone" autocomplete="tel" inputmode="tel" placeholder="方便回电的手机号" required>
+                </label>
+                <label>项目城市
+                    <input name="city" autocomplete="address-level2" placeholder="例如：苏州市吴中区">
                 </label>
                 <label>面积
                     <input name="area" placeholder="例如 300㎡ / 20间病房">
@@ -375,6 +378,7 @@
             <p>🌐 <a href="https://aiqiangban.com">aiqiangban.com</a> | <a href="https://www.szyoujiamei.com">www.szyoujiamei.com</a> | 电话：13073398902</p>
         </footer>
     </div>
+    <script src="/assets/lead-form.js" defer></script>
     <script src="/assets/lead-tracker.js" defer></script>
 </body>
 </html>

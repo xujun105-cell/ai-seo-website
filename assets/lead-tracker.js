@@ -34,6 +34,10 @@
     if (href.indexOf("mailto:") === 0) {
       writeEvent({ action: "email_click", label: link.textContent.trim(), href: href });
     }
+    var leadAction = link.getAttribute("data-lead-action");
+    if (leadAction === "ask_quote") {
+      writeEvent({ action: "ask_quote_click", label: link.textContent.trim(), href: href });
+    }
   });
 
   document.addEventListener("submit", function (event) {
