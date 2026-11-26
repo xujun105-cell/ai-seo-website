@@ -28,12 +28,7 @@
    - 选购指南链接
    - 成功案例链接
 
-6. **apply_optimization.sh** - 应用优化脚本
-   - 自动将优化代码添加到网站页面
-
 ## 应用方法
-
-运行 `bash apply_optimization.sh` 应用所有优化。
 
 ## 优化效果
 
