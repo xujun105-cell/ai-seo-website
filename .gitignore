@@ -8,3 +8,6 @@ qna_expanded/
 
 # 内部工作文档不留在 public 仓库（下划线目录只挡 Pages，不挡 raw）
 /_internal/
+
+# 工作日志与数据落盘 (不放公开仓库, 防止 Pages 发布内部日志)
+/data/
