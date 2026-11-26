@@ -4,7 +4,7 @@
 #   1) 缺证书时用 DNS-01 签发 (certbot + certbot-dns-aliyun, 阿里云 hichina DNS)
 #   2) 执行 SHA 锁定的部署 (新构建不含 MEMORY.md/TOOLS.md/.git, 并原子切 current)
 #   3) 补 listen 443 ssl + 证书链 (备份 + nginx -t 校验 + 失败自动回滚)
-#   4) 清理站点根里残留的 MEMORY.md / TOOLS.md / AGENTS.md / .git (凭据已公开, 必须清)
+#   4) 清理站点根里残留的内部文件与 .git (凭据/内部资料已公开, 必须清)
 #   5) 验收: 敏感路径必须非 200, 打印部署最后 20 行
 #
 # 用法 (服务器 root):
@@ -169,7 +169,7 @@ fi
 
 step "5. 清理站点根里残留的敏感文件 (凭据已公开, 必须清)"
 if [ -d "$BASE" ]; then
-  FOUND="$(find "$BASE" -maxdepth 3 \( -name "MEMORY.md" -o -name "TOOLS.md" -o -name "AGENTS.md" -o -name ".git" \) 2>/dev/null | head -60)"
+  FOUND="$(find "$BASE" -maxdepth 3 \( -name "MEMORY.md" -o -name "TOOLS.md" -o -name "AGENTS.md" -o -name "SOUL.md" -o -name "USER.md" -o -name "IDENTITY.md" -o -name "HEARTBEAT.md" -o -name ".git" -o -name ".openclaw" -o -name "_internal" -o -name "memory" -o -name "deploy" -o -name "apply_optimization.sh" -o -name "ai-platform-guide.md" -o -name "外链建设方案.md" -o -name "百度爱采购注册内容.md" \) 2>/dev/null | head -80)"
   if [ -n "$FOUND" ]; then
     echo "$FOUND" | while IFS= read -r P; do echo "    命中 $P"; done
     if dry "remove sensitive files under $BASE"; then
@@ -180,14 +180,20 @@ if [ -d "$BASE" ]; then
   else
     log "站点根下无敏感文件残留"
   fi
+  LEFT="$(find "$BASE" -maxdepth 3 \( -name "MEMORY.md" -o -name "TOOLS.md" -o -name ".git" -o -name ".openclaw" -o -name "apply_optimization.sh" \) 2>/dev/null | head -20)"
+  if [ -n "$LEFT" ]; then log "WARN 清理后仍有残留:"; printf "%s\n" "$LEFT" | sed "s/^/      /"; else log "清理后复检: 无残留"; fi
 else
   log "无 $BASE 目录"
 fi
 
 step "6. 验收"
-for P in /MEMORY.md /TOOLS.md /AGENTS.md /SOUL.md /USER.md /IDENTITY.md /HEARTBEAT.md /.git/config /.git/index /.git/HEAD /_internal/ /memory/ /deploy/; do
+for P in /MEMORY.md /TOOLS.md /AGENTS.md /SOUL.md /USER.md /IDENTITY.md /HEARTBEAT.md /.git/config /.git/index /.git/HEAD /.openclaw/workspace-state.json /apply_optimization.sh /ai-platform-guide.md /_internal/ /memory/ /deploy/; do
   CODE="$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "http://127.0.0.1$P" 2>/dev/null)"
   if [ "$CODE" = "200" ]; then log "FAIL $P -> $CODE (仍公开, 必须修)"; else log "OK   $P -> $CODE"; fi
+done
+log "--- 中文名内部文件磁盘复检 ---"
+for F in "外链建设方案.md" "百度爱采购注册内容.md"; do
+  if [ -e "$BASE/$F" ]; then log "FAIL $F 仍存在"; else log "OK   $F 已清除"; fi
 done
 log "--- 首页与 sitemap ---"
 curl -s -o /dev/null -w "  http://127.0.0.1/ code=%{http_code} size=%{size_download}\n" --max-time 10 "http://127.0.0.1/"
