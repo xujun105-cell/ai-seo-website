@@ -23,8 +23,37 @@ CERT_NAME="aiqiangban.com"
 DEPLOY_SHA="47578e5bfc0a6a344d61013a9013bb27bc3f245d"
 BASE="${XLD_BASE:-/var/www/aiqiangban}"
 RAW="https://raw.githubusercontent.com/xujun105-cell/ai-seo-website"
+CODELOAD="https://codeload.github.com/xujun105-cell/ai-seo-website/tar.gz"
+REPO_API="https://api.github.com/repos/xujun105-cell/ai-seo-website"
 WORK="/tmp/xld_tls_$(date +%Y%m%d-%H%M%S)"
 DRY="${XLD_DRY_RUN:-0}"
+
+# fetch_repo_file: raw -> contents API -> codeload tarball 三级回退
+# raw CDN 对新路径可能 404 (本项目实测过), 不能只靠 raw
+fetch_repo_file(){
+  local sha="$1" path="$2" out="$3"
+  if curl -fsSL --max-time 30 -o "$out" "$RAW/$sha/$path" 2>/dev/null && [ -s "$out" ]; then
+    return 0
+  fi
+  log "raw 取不到 $path, 改用 contents API"
+  rm -f "$out"
+  if curl -fsSL --max-time 30 -o "$out.json" "$REPO_API/contents/$path?ref=$sha" 2>/dev/null; then
+    if python3 -c 'import base64,json,sys;d=json.load(open(sys.argv[1]));open(sys.argv[2],"wb").write(base64.b64decode(d["content"]))' "$out.json" "$out" 2>/dev/null && [ -s "$out" ]; then
+      return 0
+    fi
+  fi
+  log "contents API 取不到, 改用 codeload tarball"
+  rm -f "$out"
+  curl -fsSL --max-time 120 -o "$WORK/repo.tar.gz" "$CODELOAD/$sha" 2>/dev/null
+  tar xz -f "$WORK/repo.tar.gz" -C "$WORK" --wildcards "*/$path" 2>/dev/null
+  local found
+  found="$(find "$WORK" -path "*/$path" -type f 2>/dev/null | head -1)"
+  if [ -n "$found" ]; then
+    cp -f "$found" "$out"
+    return 0
+  fi
+  return 1
+}
 
 log(){ echo "[tls-deploy] $*"; }
 step(){ echo ""; echo "================ $* ================"; }
@@ -100,7 +129,7 @@ SHA="$(curl -s --max-time 20 https://api.github.com/repos/xujun105-cell/ai-seo-w
 log "锁定 SHA = $SHA"
 DEPLOY_LOG="$WORK/deploy.log"
 mkdir -p "$WORK"
-curl -sSL --max-time 30 -o "$WORK/deploy_aliyun.sh" "$RAW/$SHA/deploy/deploy_aliyun.sh" || log "下载部署脚本失败"
+fetch_repo_file "$SHA" "deploy/deploy_aliyun.sh" "$WORK/deploy_aliyun.sh" || log "部署脚本下载失败"
 if [ -s "$WORK/deploy_aliyun.sh" ]; then
   if dry "bash $WORK/deploy_aliyun.sh"; then
     log "演练模式, 不实际部署"
@@ -113,7 +142,7 @@ else
 fi
 
 step "4. 补 443 配置 + 证书链 (备份, nginx -t 校验, 失败自动回滚)"
-curl -sSL --max-time 30 -o "$WORK/patch_nginx_tls.py" "$RAW/$SHA/deploy/patch_nginx_tls.py" || log "patcher 下载失败"
+fetch_repo_file "$SHA" "deploy/patch_nginx_tls.py" "$WORK/patch_nginx_tls.py" || log "patcher 下载失败"
 if [ -s "$WORK/patch_nginx_tls.py" ] && [ -f "/etc/letsencrypt/live/$CERT_NAME/fullchain.pem" ]; then
   if dry "patch_nginx_tls.py"; then
     log "演练模式, 不改 nginx"
