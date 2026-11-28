@@ -4,24 +4,53 @@
  *
  * 契约：
  *   - document 级 submit 监听，命中 [data-lead-form] 的表单时 preventDefault()
+ *   - 仅 homepage_quote / ask_quote 走 FormSubmit AJAX（GitHub Pages 上没有 /api/lead）
  *   - 校验：姓名非空；电话去空格/连字符后必须匹配 /^1[3-9]\d{9}$/
- *   - 载荷：{name, phone, city, area, message, source_page, page_type, ts, ua}
- *   - 提交：fetch(endpoint, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)})
- *   - 成功（2xx 且响应 JSON 里 ok===true）：显示成功提示 + 返回的 code
- *   - 降级（抛错 / 非 2xx / 响应非 JSON / 超时）：展示交付面板（复制询盘内容 + 拨号链接 + 微信提示）
+ *   - 提交：POST https://formsubmit.co/ajax/xiaoyi55@126.com
+ *     Content-Type 与 Accept 均为 application/json，无 token / 密钥
+ *   - 成功：FormSubmit 把 success 做成字符串。HTTP 200 且
+ *     String(success).trim()==="true" 才算送达。
+ *     {"success":"false"} 也是 HTTP 200，不能用真值判断，也不能只看 {ok:true}
+ *   - 降级（抛错 / 非 2xx / 响应非 JSON / success 不是 "true" / 超时）：
+ *     展示交付面板（复制询盘内容 + 拨号链接 + 微信提示）
  */
 (function () {
   "use strict";
 
-  var DEFAULT_ENDPOINT = "/api/lead";
-  var TIMEOUT_MS = 3000;
+  var FORMSUBMIT_ENDPOINT = "https://formsubmit.co/ajax/xiaoyi55@126.com";
+  var TIMEOUT_MS = 15000;
   var PHONE_RE = /^1[3-9]\d{9}$/;
   var WEIXIN_PHONE = "13073398902";
   var SUCCESS_TEXT = "已收到您的需求，报价单会发到微信 " + WEIXIN_PHONE;
+  var SUBJECT_BY_FORM = {
+    homepage_quote: "【官网首页询盘】aiqiangban.com",
+    ask_quote: "【在线询价页询盘】aiqiangban.com"
+  };
 
-  function endpoint() {
-    var custom = window.AIQ_LEAD_ENDPOINT;
-    return typeof custom === "string" && custom ? custom : DEFAULT_ENDPOINT;
+  function formIdOf(form) {
+    return (form && form.getAttribute && form.getAttribute("data-lead-form")) || "";
+  }
+
+  function usesFormSubmit(form) {
+    return Object.prototype.hasOwnProperty.call(SUBJECT_BY_FORM, formIdOf(form));
+  }
+
+  function oneLine(value) {
+    return String(value || "").replace(/[\r\n]+/g, " ").trim();
+  }
+
+  function emailSubject(formId, topic) {
+    var base = SUBJECT_BY_FORM[formId] || "【网站询盘】aiqiangban.com";
+    var extra = oneLine(topic);
+    var subject = extra ? base + "｜" + extra : base;
+    return subject.length > 140 ? subject.slice(0, 140) : subject;
+  }
+
+  // FormSubmit AJAX 成功体是 {"success":"true","message":"..."}（success 为字符串）。
+  // 失败经常同样是 HTTP 200 + {"success":"false"}，而 "false" 在 JS 里是真值。
+  function isFormSubmitSuccess(json) {
+    if (!json || typeof json !== "object") return false;
+    return String(json.success).trim() === "true";
   }
 
   function getParam(name) {
@@ -37,6 +66,12 @@
     if (!el) return "";
     var v = el.value;
     return typeof v === "string" ? v.trim() : "";
+  }
+
+  function rawFieldValue(form, name) {
+    var el = form.querySelector('[name="' + name + '"]');
+    if (!el || typeof el.value !== "string") return "";
+    return el.value;
   }
 
   function normalizePhone(raw) {
@@ -321,13 +356,40 @@
       if (old && old.parentNode) old.parentNode.removeChild(old);
       var ok = form.querySelector(".aiq-lead-ok");
       if (ok && ok.parentNode) ok.parentNode.removeChild(ok);
-      showFallback(form, fallbackData, "提交超时（超过 3 秒），请用下面的方式发送。");
+      showFallback(form, fallbackData, "提交超时，请用下面的方式发送。");
     }, TIMEOUT_MS);
 
-    fetch(endpoint(), {
+    if (!usesFormSubmit(form)) {
+      degrade("在线提交没有被接收，请用下面的方式发送。");
+      return;
+    }
+
+    var formId = formIdOf(form);
+    var body = {
+      _subject: emailSubject(formId, payload.topic),
+      _template: "table",
+      _captcha: "false",
+      _honey: rawFieldValue(form, "_honey"),
+      _url: window.location.href,
+      "姓名": name,
+      "电话": phone,
+      "项目城市": city || "（未填）",
+      "面积": area || "（未填）",
+      "需求": message || "（未填）",
+      "表单": formId,
+      "页面": window.location.href
+    };
+    if (payload.topic) body["咨询主题"] = payload.topic;
+    if (payload.origin_page) body["来源落地页"] = payload.origin_page;
+    if (payload.page_type && payload.page_type !== "other") body["页面类型"] = payload.page_type;
+
+    fetch(FORMSUBMIT_ENDPOINT, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      },
+      body: JSON.stringify(body),
       signal: init.signal
     })
       .then(function (res) {
@@ -336,6 +398,7 @@
         });
       })
       .then(function (r) {
+        if (timedOut) return;
         if (!r.ok) {
           degrade("服务器未正常接收（HTTP " + r.status + "），请用下面的方式发送。");
           return;
@@ -346,8 +409,8 @@
         } catch (e) {
           json = null;
         }
-        if (!json || typeof json !== "object" || json.ok !== true) {
-          degrade("服务器返回内容无法识别，请用下面的方式发送。");
+        if (!isFormSubmitSuccess(json)) {
+          degrade("在线提交没有被接收，请用下面的方式发送。");
           return;
         }
         done();
