@@ -165,6 +165,7 @@
         .lead-form .wide { grid-column: 1 / -1; }
         .lead-form button { border: 0; border-radius: 6px; background: #007acc; color: white; padding: 12px 18px; font-size: 1em; font-weight: bold; cursor: pointer; }
         .lead-form button:hover { background: #005a99; }
+        .lead-form .aiq-hp { display: none !important; }
         
         footer { text-align: center; padding: 20px; color: white; }
         footer a { color: white; text-decoration: none; margin: 0 10px; }
@@ -351,7 +352,11 @@
                     <p>苏州市吴中区光福镇<br>福锦路11号6号楼一层</p>
                 </div>
             </div>
-            <form class="lead-form" data-lead-form="homepage_quote" action="/api/lead" method="post">
+            <form class="lead-form" data-lead-form="homepage_quote" action="https://formsubmit.co/ajax/xiaoyi55@126.com" method="post">
+                <input type="hidden" name="_subject" value="【官网首页询盘】aiqiangban.com">
+                <input type="hidden" name="_captcha" value="false">
+                <input type="hidden" name="_template" value="table">
+                <input type="text" name="_honey" class="aiq-hp" tabindex="-1" autocomplete="off" aria-hidden="true" style="display:none">
                 <label>姓名
                     <input name="name" autocomplete="name" placeholder="怎么称呼您">
                 </label>

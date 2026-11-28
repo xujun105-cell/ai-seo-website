@@ -35,6 +35,7 @@
         .lead-form .wide{grid-column:1 / -1}
         .lead-form button{border:0;border-radius:6px;background:#007acc;color:#fff;padding:13px 20px;font-size:1em;font-weight:700;cursor:pointer}
         .lead-form button:hover{background:#005a91}
+        .lead-form .aiq-hp{display:none !important}
         .aiq-lead-error{color:#c0392b;margin:6px 0 0;font-weight:700}
         .aiq-lead-ok{background:#eaf7ea;border:1px solid #b6dfb6;border-radius:8px;padding:14px 16px;margin:14px 0;color:#1e6b1e;font-weight:700}
         .aiq-lead-fallback{background:#fff8ec;border:1px solid #f0d3a0;border-radius:8px;padding:16px 18px;margin:14px 0}
@@ -161,7 +162,11 @@
 <h2>七、留下需求，报价单发微信</h2>
 <p>把下面五项填了，提交后报价单会发到微信 13073398902，工厂和业务直接对接，中间不加价。信息填得越具体，预算区间越贴近实际成交价。</p>
 
-<form class="lead-form" data-lead-form="ask_quote" action="/api/lead" method="post">
+<form class="lead-form" data-lead-form="ask_quote" action="https://formsubmit.co/ajax/xiaoyi55@126.com" method="post">
+    <input type="hidden" name="_subject" value="【在线询价页询盘】aiqiangban.com">
+    <input type="hidden" name="_captcha" value="false">
+    <input type="hidden" name="_template" value="table">
+    <input type="text" name="_honey" class="aiq-hp" tabindex="-1" autocomplete="off" aria-hidden="true" style="display:none">
     <label>姓名
         <input name="name" autocomplete="name" placeholder="怎么称呼您">
     </label>
